@@ -1,13 +1,20 @@
 ﻿using System.Collections;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Piece : MonoBehaviour {
 
     private float _time;
-    private bool _allowLeft = true;
-    private bool _allowRight = true;
+    private Vector3 _startPosition = new Vector3(0, 18, 0);
+
     public bool InGame = true;
+    public bool Pause;
+    public UIManager UIMan;
+
+
+    public event Action<Piece> OnOutOfGame;
+    public event Action<Piece> OnGameOver;
 
 
 
@@ -22,6 +29,19 @@ public class Piece : MonoBehaviour {
 	// Update is called once per frame
 	void Update () 
 	{
+        if(transform.position == _startPosition)
+        {
+            if(!FindObjectOfType<GameManager>().CheckGridIsEmpty(this))
+            {
+                if (OnGameOver != null)
+                {
+                    OnGameOver(this);
+                }
+                InGame = false;
+            }
+            
+        }
+
         _time += Time.deltaTime;
 
         if(InGame)
@@ -30,11 +50,28 @@ public class Piece : MonoBehaviour {
             {
                 _time = 0;
                 transform.position -= new Vector3(0, 3, 0);
+                if(!FindObjectOfType<GameManager>().CheckGridIsEmpty(this))
+                {
+                    transform.position += new Vector3(0, 3, 0);
+                    FindObjectOfType<GameManager>().SetGrid(this);
+                    InGame = false;
+                }
             }
-            CheckInput();
+            if(InGame)
+            {
+               CheckInput(); 
+            }
 
-            CheckYPos();
 
+            //InGame = FindObjectOfType<GameManager>().CheckGridIsEmpty(this);
+        }
+        else
+        {
+            FindObjectOfType<GameManager>().SetGrid(this);
+            if(OnOutOfGame!= null)
+            {
+                OnOutOfGame(this); 
+            }
 
         }
 
@@ -49,26 +86,70 @@ public class Piece : MonoBehaviour {
         {
              
             transform.position += new Vector3(3, 0, 0);
-            CheckMovement();
+            if(!CheckPosition() || !FindObjectOfType<GameManager>().CheckGridIsEmpty(this))
+            {
+                StepLeft(); 
+            }
             
         }
         else if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
             
             transform.position += new Vector3(-3, 0, 0);
-            CheckMovement();
+            //CheckMovement();
+            if (!CheckPosition() || !FindObjectOfType<GameManager>().CheckGridIsEmpty(this))
+            {
+                StepRight();
+            }
         }
         else if (Input.GetKeyDown(KeyCode.DownArrow))
         {
             
-            transform.Rotate(0, 0, -90);
-            CheckMovement();
+            transform.Rotate(0, 0, 90);
+            //CheckMovement();
+            if (!CheckPosition() || !FindObjectOfType<GameManager>().CheckGridIsEmpty(this))
+            {
+                transform.Rotate (0, 0, -90);
+            }
         }
         else if (Input.GetKeyDown(KeyCode.UpArrow))
         {
-             
+            
+
             transform.Rotate(0, 0, 90);
-            CheckMovement();
+
+            if (!CheckPosition() || !FindObjectOfType<GameManager>().CheckGridIsEmpty(this))
+            {
+                transform.Rotate(0, 0, -90);
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.Space) && transform.position.y > -15)
+        {
+            transform.position -= new Vector3(0, 3, 0);
+            Pause = true;
+            if (!CheckPosition()|| !FindObjectOfType<GameManager>().CheckGridIsEmpty(this))
+            {
+                transform.position += new Vector3(0, 3, 0);
+                FindObjectOfType<GameManager>().SetGrid(this);
+                InGame = false;
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            if(UIMan.IsPaused)
+            {
+                UIMan.IsPaused = false;
+            }
+            else
+            {
+                UIMan.IsPaused = true;
+            }
+
+        }
+        else if(!CheckPosition())
+        {
+            InGame = false;
+            
         }
     }
 
@@ -93,6 +174,20 @@ public class Piece : MonoBehaviour {
         }
         
     }
+
+    bool CheckPosition()
+    {
+        foreach(Transform square in transform)
+        {
+            Vector3 pos = square.position;
+            if(FindObjectOfType<GameManager>().IsInside(pos) == false)
+            {
+                return false;
+            }
+        }
+        return true;
+
+    }
     void StepLeft()
     {
         transform.position += new Vector3(-3, 0, 0);
@@ -110,7 +205,9 @@ public class Piece : MonoBehaviour {
             Vector3 pos = square.position;
             if (pos.y <= -18)
             {
+                square.position = new Vector3(square.position.x, -18, 0);
                 InGame = false;
+                FindObjectOfType<GameManager>().SetGrid(this);
             }
         }
         
